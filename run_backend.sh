@@ -1,0 +1,4 @@
+#!/bin/bash
+cd /Users/nalrimet/Desktop/kmg-hr/hr-ai-app/backend
+source venv/bin/activate
+uvicorn main:app --reload --host 0.0.0.0 --port 8001
