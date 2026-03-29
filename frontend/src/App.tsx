@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock3,
   FileSearch,
+  LayoutGrid,
   Layers3,
   Network,
   Radar,
@@ -216,6 +217,8 @@ type DashboardResponse = {
   kpi_watch: Array<{ title: string; value: number; unit: string; scope_type: string }>
 }
 
+type TabId = 'overview' | 'studio' | 'radar' | 'goals'
+
 function pct(value: number) {
   return `${Math.round((value || 0) * 100)}%`
 }
@@ -355,8 +358,16 @@ function Gauge({ score, label, caption }: { score: number; label: string; captio
   )
 }
 
+const TABS: { id: TabId; label: string; icon: typeof Radar }[] = [
+  { id: 'overview', label: 'Обзор', icon: LayoutGrid },
+  { id: 'studio', label: 'Goal Studio', icon: BrainCircuit },
+  { id: 'radar', label: 'Радар команды', icon: TriangleAlert },
+  { id: 'goals', label: 'Портфель целей', icon: Users },
+]
+
 function App() {
   const studioRef = useRef<HTMLElement | null>(null)
+  const [activeTab, setActiveTab] = useState<TabId>('overview')
   const [overview, setOverview] = useState<OverviewResponse | null>(null)
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null)
   const [workspace, setWorkspace] = useState<WorkspaceResponse | null>(null)
@@ -622,31 +633,29 @@ function App() {
       <div className="ambient ambient-c" />
 
       <div className="page">
-        <header className="hero-panel fade-up">
-          <div className="hero-copy">
+        {/* ─── COMPACT HERO ─── */}
+        <header className="hero-banner fade-up">
+          <div className="hero-left">
             <div className="eyebrow">
               <Radar size={16} />
               KMG HR AI Command Center
             </div>
-            <h1>{overview?.app_name ?? 'AI слой для победного Performance Management демо'}</h1>
-            <p>
-              Показывает не только SMART, а реальную стратегическую связку: ВНД, KPI,
-              цели руководителя, качество набора целей и дашборд зрелости по подразделениям.
-            </p>
+            <h1>{overview?.app_name ?? 'KMG HR AI Command Center'}</h1>
+          </div>
 
-            <div className="hero-metrics">
+          <div className="hero-right">
+            <div className="hero-metrics-row">
               {(overview?.hero_metrics ?? []).map((metric) => (
-                <div key={metric.label} className="metric-tile">
+                <div key={metric.label} className="metric-chip">
                   <span>{displayHeroMetricLabel(metric.label)}</span>
                   <strong>{metric.value}</strong>
                 </div>
               ))}
             </div>
-
-            <div className="hero-status">
+            <div className="hero-pills">
               <span className="pill pill-soft">
                 <Bot size={14} />
-                Режим AI: {displayLlmMode(overview?.llm_mode)}
+                {displayLlmMode(overview?.llm_mode)}
               </span>
               <span className="pill pill-soft">
                 <Clock3 size={14} />
@@ -662,41 +671,32 @@ function App() {
               </span>
             </div>
           </div>
-
-          <div className="hero-spotlight">
-            <Gauge
-              score={workspace?.health.avg_smart_score ?? overview?.featured_health.avg_smart_score ?? 0}
-              label="индекс"
-              caption={`Фокусный сотрудник: ${featuredName}`}
-            />
-            <div className="spotlight-card">
-              <div className="spotlight-line">
-                <span>Набор целей</span>
-                <strong>{workspace?.health.goal_count ?? overview?.featured_health.goal_count ?? 0}</strong>
-              </div>
-              <div className="spotlight-line">
-                <span>Вес целей</span>
-                <strong>{workspace?.health.weight_total ?? overview?.featured_health.weight_total ?? 0}%</strong>
-              </div>
-              <div className="spotlight-line">
-                <span>Утверждено / активно</span>
-                <strong>{pct(workspace?.health.approved_share ?? overview?.featured_health.approved_share ?? 0)}</strong>
-              </div>
-              <div className="spotlight-line">
-                <span>Завершено</span>
-                <strong>{pct(workspace?.health.completed_share ?? overview?.featured_health.completed_share ?? 0)}</strong>
-              </div>
-            </div>
-          </div>
         </header>
 
         {error ? <div className="error-banner">{error}</div> : null}
 
-        <main className="workspace-grid">
-          <aside className="panel control-panel fade-up">
+        {/* ─── TAB BAR ─── */}
+        <nav className="tab-bar fade-up">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <tab.icon size={16} />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+
+        {/* ─── MAIN LAYOUT: sidebar + tab content ─── */}
+        <div className="main-layout">
+          {/* ─── SIDEBAR: always visible ─── */}
+          <aside className="panel sidebar-panel fade-up">
             <div className="panel-head">
               <div>
-                <span className="panel-tag">1. Контекст сотрудника</span>
+                <span className="panel-tag">Контекст сотрудника</span>
                 <h2>Кого выводим на сцену</h2>
               </div>
               <ShieldCheck size={18} />
@@ -757,402 +757,459 @@ function App() {
                 </div>
               </div>
             </div>
-
-            <div className="subpanel">
-              <div className="subpanel-head">
-                <Layers3 size={16} />
-                Активные проекты
-              </div>
-              <div className="stack-list">
-                {(workspace?.projects ?? []).slice(0, 3).map((project) => (
-                  <div key={project.project_id} className="mini-card">
-                    <strong>{project.project_name}</strong>
-                    <span>
-                      {project.role}
-                      {project.allocation_percent ? ` · ${project.allocation_percent}%` : ''}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="subpanel">
-              <div className="subpanel-head">
-                <Network size={16} />
-                KPI и каскад
-              </div>
-              <div className="stack-list">
-                {(workspace?.kpis ?? []).slice(0, 3).map((kpi) => (
-                  <div key={kpi.metric_key} className="mini-card">
-                    <strong>
-                      {kpi.title}: {kpi.value} {kpi.unit}
-                    </strong>
-                    <span>{kpi.scope_type === 'company' ? 'Сигнал компании' : 'Сигнал подразделения'}</span>
-                  </div>
-                ))}
-                {(workspace?.manager_goals ?? []).slice(0, 2).map((goal) => (
-                  <div key={goal.goal_id} className="mini-card mini-card-accent">
-                    <strong>Каскад цели руководителя</strong>
-                    <span>{goal.goal_text}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </aside>
 
-          <section ref={studioRef} className="panel studio-panel fade-up">
-            <div className="panel-head">
-              <div>
-                <span className="panel-tag">2. Goal Studio</span>
-                <h2>Проверка и генерация целей</h2>
-              </div>
-              <BrainCircuit size={18} />
-            </div>
-
-            <div className="studio-form">
-              <div className="field">
-                <label>Фокус периода</label>
-                <input
-                  value={focusPriority}
-                  onChange={(event) => setFocusPriority(event.target.value)}
-                  placeholder="Например: снижение затрат, reliability, цифровизация"
-                />
-              </div>
-
-              <div className="field">
-                <label>Черновик цели</label>
-                <textarea
-                  value={goalText}
-                  onChange={(event) => setGoalText(event.target.value)}
-                  placeholder="Сформулируй цель сотрудника. AI разложит её по SMART, стратегической связке и рискам."
-                />
-              </div>
-
-              <div className="field-row">
-                <div className="field">
-                  <label>Подсказка по метрике</label>
-                  <input
-                    value={goalMetric}
-                    onChange={(event) => setGoalMetric(event.target.value)}
-                    placeholder="SLA compliance / MTTR / defect rate"
-                  />
-                </div>
-                <div className="field">
-                  <label>Подсказка по сроку</label>
-                  <input
-                    value={goalDeadline}
-                    onChange={(event) => setGoalDeadline(event.target.value)}
-                    placeholder="до конца Q3 2025"
-                  />
-                </div>
-              </div>
-
-              <div className="actions-row">
-                <button type="button" className="button primary" onClick={handleEvaluate} disabled={loading.evaluate}>
-                  {loading.evaluate ? <span className="loader" /> : <Target size={16} />}
-                  Проверить цель
-                </button>
-
-                <div className="generator-inline">
-                  <select
-                    value={proposalCount}
-                    onChange={(event) => setProposalCount(Number(event.target.value))}
-                  >
-                    <option value={3}>3 цели</option>
-                    <option value={4}>4 цели</option>
-                    <option value={5}>5 целей</option>
-                  </select>
-                  <button type="button" className="button secondary" onClick={handleGenerate} disabled={loading.generate}>
-                    {loading.generate ? <span className="loader" /> : <WandSparkles size={16} />}
-                    Сгенерировать пакет
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="evaluation-grid">
-              <div className="evaluation-main">
-                <div className="evaluation-head">
-                  <Gauge
-                    score={evaluation?.evaluation.score ?? workspace?.health.avg_smart_score ?? 0}
-                    label="SMART"
-                    caption="Оценка по правилам и контексту"
-                  />
-                  <div className="evaluation-summary">
-                    <div className="signal-stack signal-stack-inline">
-                      <div className={`signal-box ${scoreTone(evaluation?.insights.alignment_score ?? 0.55)}`}>
-                        <span>Стратегическая связка</span>
-                        <strong>{pct(evaluation?.insights.alignment_score ?? 0.55)}</strong>
+          {/* ─── TAB CONTENT ─── */}
+          <div className="tab-content">
+            {/* ══════ OVERVIEW TAB ══════ */}
+            {activeTab === 'overview' && (
+              <div className="tab-pane fade-up" key="overview">
+                <div className="overview-grid">
+                  <div className="overview-spotlight">
+                    <Gauge
+                      score={workspace?.health.avg_smart_score ?? overview?.featured_health.avg_smart_score ?? 0}
+                      label="индекс"
+                      caption={`Фокусный сотрудник: ${featuredName}`}
+                    />
+                    <div className="spotlight-card">
+                      <div className="spotlight-line">
+                        <span>Набор целей</span>
+                        <strong>{workspace?.health.goal_count ?? overview?.featured_health.goal_count ?? 0}</strong>
                       </div>
-                      <div className="signal-box neutral">
-                        <span>Тип цели</span>
-                        <strong>{displayGoalType(evaluation?.insights.goal_type)}</strong>
+                      <div className="spotlight-line">
+                        <span>Вес целей</span>
+                        <strong>{workspace?.health.weight_total ?? overview?.featured_health.weight_total ?? 0}%</strong>
                       </div>
-                      <div className={`signal-box ${evaluation?.insights.duplicate_risk === 'high' ? 'risk' : 'neutral'}`}>
-                        <span>Риск дублирования</span>
-                        <strong>{displayDuplicateRisk(evaluation?.insights.duplicate_risk)}</strong>
+                      <div className="spotlight-line">
+                        <span>Утверждено / активно</span>
+                        <strong>{pct(workspace?.health.approved_share ?? overview?.featured_health.approved_share ?? 0)}</strong>
+                      </div>
+                      <div className="spotlight-line">
+                        <span>Завершено</span>
+                        <strong>{pct(workspace?.health.completed_share ?? overview?.featured_health.completed_share ?? 0)}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="overview-details">
+                    <div className="subpanel">
+                      <div className="subpanel-head">
+                        <Layers3 size={16} />
+                        Активные проекты
+                      </div>
+                      <div className="stack-list">
+                        {(workspace?.projects ?? []).slice(0, 3).map((project) => (
+                          <div key={project.project_id} className="mini-card">
+                            <strong>{project.project_name}</strong>
+                            <span>
+                              {project.role}
+                              {project.allocation_percent ? ` · ${project.allocation_percent}%` : ''}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
-                    <div className="recommendation-strip">
-                      {recommendations.length ? recommendations.map((item) => (
-                        <div key={item} className="recommendation-row">
-                          <CheckCircle2 size={15} />
-                          <span>{item}</span>
+                    <div className="subpanel">
+                      <div className="subpanel-head">
+                        <Network size={16} />
+                        KPI и каскад
+                      </div>
+                      <div className="stack-list">
+                        {(workspace?.kpis ?? []).slice(0, 3).map((kpi) => (
+                          <div key={kpi.metric_key} className="mini-card">
+                            <strong>
+                              {kpi.title}: {kpi.value} {kpi.unit}
+                            </strong>
+                            <span>{kpi.scope_type === 'company' ? 'Сигнал компании' : 'Сигнал подразделения'}</span>
+                          </div>
+                        ))}
+                        {(workspace?.manager_goals ?? []).slice(0, 2).map((goal) => (
+                          <div key={goal.goal_id} className="mini-card mini-card-accent">
+                            <strong>Каскад цели руководителя</strong>
+                            <span>{goal.goal_text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ══════ GOAL STUDIO TAB ══════ */}
+            {activeTab === 'studio' && (
+              <section ref={studioRef} className="tab-pane fade-up" key="studio">
+                <div className="panel studio-inner">
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-tag">Goal Studio</span>
+                      <h2>Проверка и генерация целей</h2>
+                    </div>
+                    <BrainCircuit size={18} />
+                  </div>
+
+                  <div className="studio-form">
+                    <div className="field">
+                      <label>Фокус периода</label>
+                      <input
+                        value={focusPriority}
+                        onChange={(event) => setFocusPriority(event.target.value)}
+                        placeholder="Например: снижение затрат, reliability, цифровизация"
+                      />
+                    </div>
+
+                    <div className="field">
+                      <label>Черновик цели</label>
+                      <textarea
+                        value={goalText}
+                        onChange={(event) => setGoalText(event.target.value)}
+                        placeholder="Сформулируй цель сотрудника. AI разложит её по SMART, стратегической связке и рискам."
+                      />
+                    </div>
+
+                    <div className="field-row">
+                      <div className="field">
+                        <label>Подсказка по метрике</label>
+                        <input
+                          value={goalMetric}
+                          onChange={(event) => setGoalMetric(event.target.value)}
+                          placeholder="SLA compliance / MTTR / defect rate"
+                        />
+                      </div>
+                      <div className="field">
+                        <label>Подсказка по сроку</label>
+                        <input
+                          value={goalDeadline}
+                          onChange={(event) => setGoalDeadline(event.target.value)}
+                          placeholder="до конца Q3 2025"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="actions-row">
+                      <button type="button" className="button primary" onClick={handleEvaluate} disabled={loading.evaluate}>
+                        {loading.evaluate ? <span className="loader" /> : <Target size={16} />}
+                        Проверить цель
+                      </button>
+
+                      <div className="generator-inline">
+                        <select
+                          value={proposalCount}
+                          onChange={(event) => setProposalCount(Number(event.target.value))}
+                        >
+                          <option value={3}>3 цели</option>
+                          <option value={4}>4 цели</option>
+                          <option value={5}>5 целей</option>
+                        </select>
+                        <button type="button" className="button secondary" onClick={handleGenerate} disabled={loading.generate}>
+                          {loading.generate ? <span className="loader" /> : <WandSparkles size={16} />}
+                          Сгенерировать пакет
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="evaluation-grid">
+                    <div className="evaluation-main">
+                      <div className="evaluation-head">
+                        <Gauge
+                          score={evaluation?.evaluation.score ?? workspace?.health.avg_smart_score ?? 0}
+                          label="SMART"
+                          caption="Оценка по правилам и контексту"
+                        />
+                        <div className="evaluation-summary">
+                          <div className="signal-stack signal-stack-inline">
+                            <div className={`signal-box ${scoreTone(evaluation?.insights.alignment_score ?? 0.55)}`}>
+                              <span>Стратегическая связка</span>
+                              <strong>{pct(evaluation?.insights.alignment_score ?? 0.55)}</strong>
+                            </div>
+                            <div className="signal-box neutral">
+                              <span>Тип цели</span>
+                              <strong>{displayGoalType(evaluation?.insights.goal_type)}</strong>
+                            </div>
+                            <div className={`signal-box ${evaluation?.insights.duplicate_risk === 'high' ? 'risk' : 'neutral'}`}>
+                              <span>Риск дублирования</span>
+                              <strong>{displayDuplicateRisk(evaluation?.insights.duplicate_risk)}</strong>
+                            </div>
+                          </div>
+
+                          <div className="recommendation-strip">
+                            {recommendations.length ? recommendations.map((item) => (
+                              <div key={item} className="recommendation-row">
+                                <CheckCircle2 size={15} />
+                                <span>{item}</span>
+                              </div>
+                            )) : (
+                              <div className="recommendation-row">
+                                <CheckCircle2 size={15} />
+                                <span>Рекомендации появятся после детальной оценки цели.</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )) : (
-                        <div className="recommendation-row">
-                          <CheckCircle2 size={15} />
-                          <span>Рекомендации появятся после детальной оценки цели.</span>
+                      </div>
+
+                      {deltaValue !== null ? (
+                        <div className={`delta-banner ${deltaTone(deltaValue)}`}>
+                          <span>Эффект от новой формулировки</span>
+                          <strong>{formatDeltaPoints(deltaValue)}</strong>
+                          <p>
+                            SMART изменился с {pct(evaluationDelta?.before ?? 0)} до {pct(evaluationDelta?.after ?? 0)}
+                            {' '}относительно предыдущей версии цели.
+                          </p>
+                        </div>
+                      ) : null}
+
+                      <div className="smart-grid">
+                        {smartBreakdown.map(([label, text]) => (
+                          <article key={label} className="smart-card">
+                            <span>{label}</span>
+                            <p>{text ?? (loading.evaluate ? 'AI анализирует текущую цель и собирает пояснение.' : 'Запусти оценку, чтобы увидеть разбор по критерию.')}</p>
+                          </article>
+                        ))}
+                      </div>
+
+                      <div className="rewrite-card">
+                        <div className="rewrite-head">
+                          <Sparkles size={16} />
+                          Усиленная формулировка
+                        </div>
+                        <p>{evaluation?.evaluation.improved_version ?? (loading.evaluate ? 'Формируем улучшенную формулировку на основе текущей цели.' : 'Здесь появится усиленная формулировка.')}</p>
+                      </div>
+                    </div>
+
+                    <div className="evaluation-side">
+                      <div className="subpanel">
+                        <div className="subpanel-head">
+                          <FileSearch size={16} />
+                          Подтверждение из ВНД
+                        </div>
+                        <div className="stack-list">
+                          {evidenceItems.length ? evidenceItems.map((item) => (
+                            <div key={item.doc_id} className="mini-card mini-card-accent">
+                              <strong>{item.title}</strong>
+                              <span>{item.source_quote}</span>
+                            </div>
+                          )) : (
+                            <div className="mini-card mini-card-accent">
+                              <span>Подберём подтверждение из ВНД после выбора цели или сотрудника.</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="subpanel">
+                        <div className="subpanel-head">
+                          <Activity size={16} />
+                          Похожие цели
+                        </div>
+                        <div className="stack-list">
+                          {similarGoals.length ? similarGoals.map((goal) => (
+                            <div key={goal.goal_id} className="mini-card">
+                              <strong>{goal.goal_text}</strong>
+                              <span>
+                                {goal.employee_name ? `${goal.employee_name} · ` : ''}
+                                {displayStatus(goal.status)} · {pct(goal.similarity)}
+                              </span>
+                            </div>
+                          )) : (
+                            <div className="mini-card">
+                              <span>Похожие формулировки появятся после оценки текущего черновика.</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="proposal-section">
+                    <div className="panel-head compact">
+                      <div>
+                        <span className="panel-tag">AI-предложения</span>
+                        <h3>Набор целей для роли</h3>
+                      </div>
+                      <WandSparkles size={18} />
+                    </div>
+
+                    <div className="proposal-grid">
+                      {proposalItems.length ? (
+                        proposalItems.map((proposal, index) => (
+                          <article key={`${proposal.goal_text}-${index}`} className="proposal-card">
+                            <div className="proposal-top">
+                              <span className={`score-chip ${scoreTone(proposal.smart_score)}`}>{pct(proposal.smart_score)}</span>
+                              <span className="ghost-chip">{displayAlignmentLevel(proposal.alignment_level)}</span>
+                            </div>
+                            <h4>{proposal.goal_text}</h4>
+                            <p>{proposal.context_reasoning}</p>
+                            <div className="proposal-source">
+                              <strong>{proposal.source_document}</strong>
+                              <span>{proposal.source_quote}</span>
+                            </div>
+                            <div className="proposal-actions">
+                              <button type="button" className="button tertiary" onClick={() => adoptProposal(proposal)}>
+                                Взять в студию
+                                <ArrowRight size={15} />
+                              </button>
+                            </div>
+                          </article>
+                        ))
+                      ) : loading.generate ? (
+                        <div className="empty-state">
+                          <WandSparkles size={24} />
+                          <strong>AI собирает пакет целей</strong>
+                          <p>Подтягиваем ВНД, KPI, каскад от руководителя и профиль сотрудника.</p>
+                        </div>
+                      ) : (
+                        <div className="empty-state">
+                          <WandSparkles size={24} />
+                          <strong>Сгенерируй пакет целей</strong>
+                          <p>Мы соберём цели на основе ВНД, KPI, контекста сотрудника и каскада от руководителя.</p>
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
+              </section>
+            )}
 
-                {deltaValue !== null ? (
-                  <div className={`delta-banner ${deltaTone(deltaValue)}`}>
-                    <span>Эффект от новой формулировки</span>
-                    <strong>{formatDeltaPoints(deltaValue)}</strong>
-                    <p>
-                      SMART изменился с {pct(evaluationDelta?.before ?? 0)} до {pct(evaluationDelta?.after ?? 0)}
-                      {' '}относительно предыдущей версии цели.
-                    </p>
-                  </div>
-                ) : null}
-
-                <div className="smart-grid">
-                  {smartBreakdown.map(([label, text]) => (
-                    <article key={label} className="smart-card">
-                      <span>{label}</span>
-                      <p>{text ?? (loading.evaluate ? 'AI анализирует текущую цель и собирает пояснение.' : 'Запусти оценку, чтобы увидеть разбор по критерию.')}</p>
-                    </article>
-                  ))}
-                </div>
-
-                <div className="rewrite-card">
-                  <div className="rewrite-head">
-                    <Sparkles size={16} />
-                    Усиленная формулировка
-                  </div>
-                  <p>{evaluation?.evaluation.improved_version ?? (loading.evaluate ? 'Формируем улучшенную формулировку на основе текущей цели.' : 'Здесь появится усиленная формулировка.')}</p>
-                </div>
-              </div>
-
-              <div className="evaluation-side">
-                <div className="subpanel">
-                  <div className="subpanel-head">
-                    <FileSearch size={16} />
-                    Подтверждение из ВНД
-                  </div>
-                  <div className="stack-list">
-                    {evidenceItems.length ? evidenceItems.map((item) => (
-                      <div key={item.doc_id} className="mini-card mini-card-accent">
-                        <strong>{item.title}</strong>
-                        <span>{item.source_quote}</span>
-                      </div>
-                    )) : (
-                      <div className="mini-card mini-card-accent">
-                        <span>Подберём подтверждение из ВНД после выбора цели или сотрудника.</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="subpanel">
-                  <div className="subpanel-head">
-                    <Activity size={16} />
-                    Похожие цели
-                  </div>
-                  <div className="stack-list">
-                    {similarGoals.length ? similarGoals.map((goal) => (
-                      <div key={goal.goal_id} className="mini-card">
-                        <strong>{goal.goal_text}</strong>
-                        <span>
-                          {goal.employee_name ? `${goal.employee_name} · ` : ''}
-                          {displayStatus(goal.status)} · {pct(goal.similarity)}
-                        </span>
-                      </div>
-                    )) : (
-                      <div className="mini-card">
-                        <span>Похожие формулировки появятся после оценки текущего черновика.</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="proposal-section">
-              <div className="panel-head compact">
-                <div>
-                  <span className="panel-tag">3. AI-предложения</span>
-                  <h3>Набор целей для роли</h3>
-                </div>
-                <WandSparkles size={18} />
-              </div>
-
-              <div className="proposal-grid">
-                {proposalItems.length ? (
-                  proposalItems.map((proposal, index) => (
-                    <article key={`${proposal.goal_text}-${index}`} className="proposal-card">
-                      <div className="proposal-top">
-                        <span className={`score-chip ${scoreTone(proposal.smart_score)}`}>{pct(proposal.smart_score)}</span>
-                        <span className="ghost-chip">{displayAlignmentLevel(proposal.alignment_level)}</span>
-                      </div>
-                      <h4>{proposal.goal_text}</h4>
-                      <p>{proposal.context_reasoning}</p>
-                      <div className="proposal-source">
-                        <strong>{proposal.source_document}</strong>
-                        <span>{proposal.source_quote}</span>
-                      </div>
-                      <div className="proposal-actions">
-                        <button type="button" className="button tertiary" onClick={() => adoptProposal(proposal)}>
-                          Взять в студию
-                          <ArrowRight size={15} />
-                        </button>
-                      </div>
-                    </article>
-                  ))
-                ) : loading.generate ? (
-                  <div className="empty-state">
-                    <WandSparkles size={24} />
-                    <strong>AI собирает пакет целей</strong>
-                    <p>Подтягиваем ВНД, KPI, каскад от руководителя и профиль сотрудника.</p>
-                  </div>
-                ) : (
-                  <div className="empty-state">
-                    <WandSparkles size={24} />
-                    <strong>Сгенерируй пакет целей</strong>
-                    <p>Мы соберём цели на основе ВНД, KPI, контекста сотрудника и каскада от руководителя.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <aside className="panel radar-panel fade-up">
-              <div className="panel-head">
-                <div>
-                  <span className="panel-tag">3. Радар команды</span>
-                  <h2>Зрелость целеполагания</h2>
-                </div>
-                <TriangleAlert size={18} />
-              </div>
-
-            <div className="ghost-chip" style={{ marginBottom: '14px' }}>
-              Срез: {dashboard?.period?.quarter ?? 'Q?'} {dashboard?.period?.year ?? '----'}
-            </div>
-
-            <div className="radar-summary">
-              <div className="radar-stat">
-                <span>Качество</span>
-                <strong>{pct(dashboard?.summary.avg_smart_score ?? 0)}</strong>
-              </div>
-              <div className="radar-stat">
-                <span>Связка</span>
-                <strong>{pct(dashboard?.summary.alignment_coverage ?? 0)}</strong>
-              </div>
-              <div className="radar-stat">
-                <span>Активность</span>
-                <strong>{pct(dashboard?.summary.activity_goal_share ?? 0)}</strong>
-              </div>
-            </div>
-
-            <div className="subpanel">
-              <div className="subpanel-head">
-                <Building2 size={16} />
-                Лидеры подразделений
-              </div>
-              <div className="leaderboard">
-                {departmentRankings.map((department) => (
-                  <div key={department.department_name} className="leader-row">
-                    <div className="leader-copy">
-                      <strong>{department.department_name}</strong>
-                      <span>{department.headline}</span>
+            {/* ══════ RADAR TAB ══════ */}
+            {activeTab === 'radar' && (
+              <div className="tab-pane fade-up" key="radar">
+                <div className="panel radar-inner">
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-tag">Радар команды</span>
+                      <h2>Зрелость целеполагания</h2>
                     </div>
-                    <div className="leader-bar">
-                      <div
-                        className={`leader-fill ${department.risk_band}`}
-                        style={{ width: pct(department.avg_smart_score) }}
-                      />
+                    <TriangleAlert size={18} />
+                  </div>
+
+                  <div className="ghost-chip" style={{ marginBottom: '14px' }}>
+                    Срез: {dashboard?.period?.quarter ?? 'Q?'} {dashboard?.period?.year ?? '----'}
+                  </div>
+
+                  <div className="radar-summary">
+                    <div className="radar-stat">
+                      <span>Качество</span>
+                      <strong>{pct(dashboard?.summary.avg_smart_score ?? 0)}</strong>
                     </div>
-                    <strong className="leader-score">{pct(department.avg_smart_score)}</strong>
+                    <div className="radar-stat">
+                      <span>Связка</span>
+                      <strong>{pct(dashboard?.summary.alignment_coverage ?? 0)}</strong>
+                    </div>
+                    <div className="radar-stat">
+                      <span>Активность</span>
+                      <strong>{pct(dashboard?.summary.activity_goal_share ?? 0)}</strong>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            <div className="subpanel">
-              <div className="subpanel-head">
-                <TriangleAlert size={16} />
-                Кластеры рисков
-              </div>
-              <div className="risk-clusters">
-                {riskClusters.map((cluster) => (
-                  <div key={cluster.label} className="cluster-pill">
-                    <span>{displayIssueLabel(cluster.label)}</span>
-                    <strong>{cluster.count}</strong>
+                  <div className="radar-body">
+                    <div className="subpanel">
+                      <div className="subpanel-head">
+                        <Building2 size={16} />
+                        Лидеры подразделений
+                      </div>
+                      <div className="leaderboard">
+                        {departmentRankings.map((department) => (
+                          <div key={department.department_name} className="leader-row">
+                            <div className="leader-copy">
+                              <strong>{department.department_name}</strong>
+                              <span>{department.headline}</span>
+                            </div>
+                            <div className="leader-bar">
+                              <div
+                                className={`leader-fill ${department.risk_band}`}
+                                style={{ width: pct(department.avg_smart_score) }}
+                              />
+                            </div>
+                            <strong className="leader-score">{pct(department.avg_smart_score)}</strong>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="radar-side-grid">
+                      <div className="subpanel">
+                        <div className="subpanel-head">
+                          <TriangleAlert size={16} />
+                          Кластеры рисков
+                        </div>
+                        <div className="risk-clusters">
+                          {riskClusters.map((cluster) => (
+                            <div key={cluster.label} className="cluster-pill">
+                              <span>{displayIssueLabel(cluster.label)}</span>
+                              <strong>{cluster.count}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="subpanel">
+                        <div className="subpanel-head">
+                          <Clock3 size={16} />
+                          Контроль KPI
+                        </div>
+                        <div className="stack-list">
+                          {kpiWatch.map((kpi) => (
+                            <div key={`${kpi.title}-${kpi.scope_type}`} className="mini-card">
+                              <strong>
+                                {kpi.title}: {kpi.value} {kpi.unit}
+                              </strong>
+                              <span>{displayScopeType(kpi.scope_type)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="subpanel">
-              <div className="subpanel-head">
-                <Clock3 size={16} />
-                Контроль KPI
-              </div>
-              <div className="stack-list">
-                {kpiWatch.map((kpi) => (
-                  <div key={`${kpi.title}-${kpi.scope_type}`} className="mini-card">
-                    <strong>
-                      {kpi.title}: {kpi.value} {kpi.unit}
-                    </strong>
-                    <span>{displayScopeType(kpi.scope_type)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </aside>
-        </main>
-
-        <section className="panel goal-board fade-up">
-          <div className="panel-head compact">
-            <div>
-              <span className="panel-tag">4. Текущий портфель</span>
-              <h3>Набор текущих целей сотрудника</h3>
-            </div>
-            <Users size={18} />
-          </div>
-
-          <div className="goal-board-grid">
-            {(workspace?.current_goals ?? []).map((goal) => (
-              <article key={goal.goal_id} className="goal-board-card">
-                <div className="goal-board-top">
-                  <span className={`score-chip ${scoreTone(goal.smart_score)}`}>{pct(goal.smart_score)}</span>
-                  <span className="ghost-chip">{displayGoalType(goal.goal_type)}</span>
                 </div>
-                <h4>{goal.goal_text}</h4>
-                <div className="goal-board-meta">
-                  <span>{displayStatus(goal.status)}</span>
-                  <span>{goal.weight ? `${goal.weight}%` : 'вес не задан'}</span>
-                  <span>{displayAlignmentLevel(goal.alignment_level)}</span>
-                </div>
-                <p>{goal.review_comment || 'Комментарий руководителя пока не зафиксирован.'}</p>
-              </article>
-            ))}
-          </div>
-
-          <div className="issue-ribbon">
-            {(workspace?.top_issues ?? []).map((issue) => (
-              <div key={issue.label} className="issue-chip">
-                <span>{issue.label}</span>
-                <strong>{issue.count}</strong>
               </div>
-            ))}
+            )}
+
+            {/* ══════ GOALS TAB ══════ */}
+            {activeTab === 'goals' && (
+              <div className="tab-pane fade-up" key="goals">
+                <div className="panel goals-inner">
+                  <div className="panel-head compact">
+                    <div>
+                      <span className="panel-tag">Текущий портфель</span>
+                      <h3>Набор текущих целей сотрудника</h3>
+                    </div>
+                    <Users size={18} />
+                  </div>
+
+                  <div className="goal-board-grid">
+                    {(workspace?.current_goals ?? []).map((goal) => (
+                      <article key={goal.goal_id} className="goal-board-card">
+                        <div className="goal-board-top">
+                          <span className={`score-chip ${scoreTone(goal.smart_score)}`}>{pct(goal.smart_score)}</span>
+                          <span className="ghost-chip">{displayGoalType(goal.goal_type)}</span>
+                        </div>
+                        <h4>{goal.goal_text}</h4>
+                        <div className="goal-board-meta">
+                          <span>{displayStatus(goal.status)}</span>
+                          <span>{goal.weight ? `${goal.weight}%` : 'вес не задан'}</span>
+                          <span>{displayAlignmentLevel(goal.alignment_level)}</span>
+                        </div>
+                        <p>{goal.review_comment || 'Комментарий руководителя пока не зафиксирован.'}</p>
+                      </article>
+                    ))}
+                  </div>
+
+                  <div className="issue-ribbon">
+                    {(workspace?.top_issues ?? []).map((issue) => (
+                      <div key={issue.label} className="issue-chip">
+                        <span>{issue.label}</span>
+                        <strong>{issue.count}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </section>
+        </div>
 
         {loading.overview || loading.workspace ? <div className="loading-line" /> : null}
       </div>
