@@ -7,13 +7,21 @@
 - `AI generation`: цели на основе ВНД, KPI и каскада от руководителя
 - `Team radar`: дашборд зрелости целеполагания по подразделениям
 
-Проект работает на локальных CSV из `../data` и не зависит от внешней БД. Внешний LLM опционален: без ключа система работает на rule-based / retrieval логике, а с ключом улучшает формулировки и generation quality.
+Проект работает на локальных CSV из `data/` и не зависит от внешней БД. Внешний LLM опционален: без ключа система работает на rule-based / retrieval логике, а с ключом улучшает формулировки и generation quality.
 
 ## Стек
 
 - Backend: FastAPI, pandas, scikit-learn, OpenAI SDK
 - Frontend: React 19, Vite, TypeScript
 - Data intelligence: TF-IDF retrieval, rule engine, hybrid LLM orchestration
+
+## Структура репозитория
+
+- `backend/` — API, retrieval, scoring, generation
+- `frontend/` — demo UI
+- `data/` — хакатонный CSV-датасет
+- `instructions/` — исходные инструкции и материалы кейса
+- `presentation/` — финальные материалы для Demo Day
 
 ## Запуск
 

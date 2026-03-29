@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     app_name: str = "KMG HR AI Command Center"
     data_dir: Path = Field(
-        default_factory=lambda: Path(__file__).resolve().parents[2] / "data"
+        default_factory=lambda: Path(__file__).resolve().parents[1] / "data"
     )
     cache_dir: Path = Field(
         default_factory=lambda: Path(__file__).resolve().parent / ".cache"
