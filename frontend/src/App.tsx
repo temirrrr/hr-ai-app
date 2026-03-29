@@ -226,6 +226,18 @@ function scoreTone(score: number) {
   return 'risk'
 }
 
+function deltaTone(delta: number) {
+  if (delta >= 0.08) return 'good'
+  if (delta > 0) return 'watch'
+  if (delta < 0) return 'risk'
+  return 'neutral'
+}
+
+function formatDeltaPoints(delta: number) {
+  const points = Math.round(delta * 100)
+  return `${points > 0 ? '+' : ''}${points} п.п.`
+}
+
 function humanizeToken(value: string) {
   return value.replace(/_/g, ' ').trim()
 }
@@ -360,6 +372,7 @@ function App() {
   const [proposalCount, setProposalCount] = useState(4)
 
   const [evaluation, setEvaluation] = useState<EvaluationResponse | null>(null)
+  const [evaluationDelta, setEvaluationDelta] = useState<{ before: number; after: number } | null>(null)
   const [generation, setGeneration] = useState<GenerationResponse | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState({
@@ -469,6 +482,7 @@ function App() {
           setGoalMetric('')
           setGoalDeadline('')
           setEvaluation(null)
+          setEvaluationDelta(null)
           setGeneration(null)
         })
 
@@ -509,6 +523,7 @@ function App() {
 
   const handleEvaluate = async () => {
     if (!goalText.trim()) return
+    const previousScore = evaluation?.evaluation.score ?? null
     setLoading((state) => ({ ...state, evaluate: true }))
     setError('')
     try {
@@ -519,7 +534,12 @@ function App() {
         metric: goalMetric || undefined,
         deadline: goalDeadline || undefined,
       })
-      startTransition(() => setEvaluation(data))
+      startTransition(() => {
+        setEvaluation(data)
+        setEvaluationDelta(
+          previousScore === null ? null : { before: previousScore, after: data.evaluation.score }
+        )
+      })
     } catch {
       setError('Оценка цели не выполнена.')
     } finally {
@@ -546,6 +566,7 @@ function App() {
   }
 
   const adoptProposal = async (proposal: GoalProposal) => {
+    const previousScore = evaluation?.evaluation.score ?? null
     startTransition(() => {
       setGoalText(proposal.goal_text)
       setGoalMetric('')
@@ -561,7 +582,12 @@ function App() {
         employee_id: selectedEmployeeId,
         focus_priority: focusPriority,
       })
-      startTransition(() => setEvaluation(data))
+      startTransition(() => {
+        setEvaluation(data)
+        setEvaluationDelta(
+          previousScore === null ? null : { before: previousScore, after: data.evaluation.score }
+        )
+      })
     } catch {
       setError('Не удалось пересчитать оценку для выбранного предложения.')
     } finally {
@@ -587,6 +613,7 @@ function App() {
   const departmentRankings = (dashboard?.department_rankings ?? []).slice(0, 4)
   const riskClusters = (dashboard?.risk_clusters ?? []).slice(0, 4)
   const kpiWatch = (dashboard?.kpi_watch ?? []).slice(0, 3)
+  const deltaValue = evaluationDelta ? evaluationDelta.after - evaluationDelta.before : null
 
   return (
     <div className="app-shell">
@@ -882,6 +909,17 @@ function App() {
                     </div>
                   </div>
                 </div>
+
+                {deltaValue !== null ? (
+                  <div className={`delta-banner ${deltaTone(deltaValue)}`}>
+                    <span>Эффект от новой формулировки</span>
+                    <strong>{formatDeltaPoints(deltaValue)}</strong>
+                    <p>
+                      SMART изменился с {pct(evaluationDelta?.before ?? 0)} до {pct(evaluationDelta?.after ?? 0)}
+                      {' '}относительно предыдущей версии цели.
+                    </p>
+                  </div>
+                ) : null}
 
                 <div className="smart-grid">
                   {smartBreakdown.map(([label, text]) => (
